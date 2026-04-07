@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -34,6 +35,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <Script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9545098007455156"
+          crossOrigin="anonymous"
+          strategy="afterInteractive"
+        />
         <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
         <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;700;800&family=Roboto:wght@400;700;900&display=swap" rel="stylesheet" />
       </head>
