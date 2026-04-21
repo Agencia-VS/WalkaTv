@@ -23,6 +23,7 @@ interface Video {
 export default function HeroSection() {
   return (
     <section
+      id="hero"
       className="bg-jet snap-start min-h-screen w-full flex flex-col items-center justify-center relative text-white overflow-hidden pt-24"
       data-section="hero"
     >

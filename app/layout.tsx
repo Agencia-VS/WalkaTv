@@ -14,16 +14,47 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Walka tv",
-  description: "WalkaTV es un canal de streaming y entretenimiento...",
+  metadataBase: new URL("https://walkatv.com"),
+  title: {
+    default: "Walka TV — Entretenimiento y deporte",
+    template: "%s",
+  },
+  description:
+    "Walka TV es un medio de entretenimiento y deporte: reviews, entrevistas, análisis y detrás de cámaras de nuestro canal de YouTube.",
+  applicationName: "Walka TV",
+  keywords: [
+    "Walka TV",
+    "entretenimiento deportivo",
+    "entrevistas deportivas",
+    "reviews",
+    "análisis deportivo",
+    "YouTube deporte",
+  ],
+  authors: [{ name: "Equipo Walka TV" }],
+  creator: "Walka TV",
+  publisher: "Walka TV",
+  openGraph: {
+    type: "website",
+    locale: "es_ES",
+    url: "https://walkatv.com",
+    siteName: "Walka TV",
+    title: "Walka TV — Entretenimiento y deporte",
+    description:
+      "Reviews, entrevistas, análisis y detrás de cámaras del equipo de Walka TV.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Walka TV",
+    description:
+      "Reviews, entrevistas, análisis y detrás de cámaras del equipo de Walka TV.",
+  },
+  robots: { index: true, follow: true },
   icons: {
     icon: [
-      { url: "/favicon1.png" }, // Asegúrate que mida al menos 32x32
-      { url: "/favicon1.png", sizes: "192x192", type: "image/png" }, // Para Android/Google
+      { url: "/favicon1.png" },
+      { url: "/favicon1.png", sizes: "192x192", type: "image/png" },
     ],
-    apple: [
-      { url: "/favicon1.png" }, // Para iPhones
-    ],
+    apple: [{ url: "/favicon1.png" }],
   },
 };
 
@@ -33,7 +64,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="es">
       <head>
         <Script
           async
@@ -46,6 +77,7 @@ export default function RootLayout({
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        suppressHydrationWarning
       >
         {children}
       </body>

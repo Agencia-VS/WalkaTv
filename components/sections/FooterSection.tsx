@@ -1,6 +1,7 @@
 'use client';
 
 import React from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import SocialFeedSection from "./SocialFeedSection";
 
@@ -32,19 +33,42 @@ export default function FooterSection() {
       </div>
       <div className="max-w-6xl mx-auto px-4 md:px-6">
         <motion.div
-          className="flex flex-col items-center gap-3"
+          className="flex flex-col items-center gap-4"
           initial="hidden"
           whileInView="visible"
           exit="hidden"
           variants={containerVariants}
           viewport={{ once: false, amount: 0.5 }}
         >
-          {/* Copyright - Simple */}
-          <motion.p
-            className="text-center text-moonstone/50 text-xs md:text-xs"
+          <motion.nav
+            aria-label="Enlaces legales"
+            className="flex flex-wrap gap-4 justify-center text-xs md:text-sm"
             variants={itemVariants}
           >
-            © 2026 Walka TV. Todos los derechos reservados.
+            <Link href="/articulos" className="text-moonstone hover:text-naranja">
+              Artículos
+            </Link>
+            <Link href="/sobre-nosotros" className="text-moonstone hover:text-naranja">
+              Sobre nosotros
+            </Link>
+            <Link href="/contacto" className="text-moonstone hover:text-naranja">
+              Contacto
+            </Link>
+            <Link href="/privacidad" className="text-moonstone hover:text-naranja">
+              Privacidad
+            </Link>
+            <Link href="/cookies" className="text-moonstone hover:text-naranja">
+              Cookies
+            </Link>
+            <Link href="/terminos" className="text-moonstone hover:text-naranja">
+              Términos
+            </Link>
+          </motion.nav>
+          <motion.p
+            className="text-center text-moonstone/50 text-xs"
+            variants={itemVariants}
+          >
+            © {new Date().getFullYear()} Walka TV. Todos los derechos reservados.
           </motion.p>
         </motion.div>
       </div>

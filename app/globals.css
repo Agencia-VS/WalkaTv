@@ -9,8 +9,12 @@ html, body {
 body {
   font-family: 'Roboto', Arial, Helvetica, sans-serif;
   color: #fee8c8;
-  scroll-snap-type: y mandatory;
   overflow-x: hidden;
+  scroll-behavior: smooth;
+}
+
+.snap-home {
+  scroll-snap-type: y mandatory;
 }
 
 .font-oswald {

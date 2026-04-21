@@ -54,7 +54,7 @@ export default function LatestContentSection() {
   };
 
   return (
-    <section className="bg-jet snap-start min-h-screen w-full flex flex-col items-center justify-center text-white px-4 py-20 md:py-0 scroll-mt-15 pb-16" data-section="latest">
+    <section id="latest" className="bg-jet snap-start min-h-screen w-full flex flex-col items-center justify-center text-white px-4 py-20 md:py-0 scroll-mt-15 pb-16" data-section="latest">
       <motion.h2
         className="text-2xl md:text-4xl lg:text-5xl font-bold mb-8 md:mb-12 text-naranja font-oswald"
         initial={{ opacity: 0, y: -30 }}
