@@ -77,6 +77,11 @@ function getConfig() {
   const lookbackDays = Math.max(1, readNumberEnv("WEEKLY_LOOKBACK_DAYS", 7));
   const topN = Math.max(1, readNumberEnv("WEEKLY_TOP_N", 3));
   const minViews = Math.max(0, readNumberEnv("WEEKLY_MIN_VIEWS", 0));
+  const maxAttempts = Math.max(
+    topN,
+    readNumberEnv("WEEKLY_MAX_ATTEMPTS", topN * 4),
+  );
+  const failIfNoneGenerated = readBooleanEnv("WEEKLY_FAIL_IF_NONE_GENERATED", false);
   const defaultCategory = readCategoryEnv("WEEKLY_DEFAULT_CATEGORY", "Análisis");
   const excludeShorts = readBooleanEnv("WEEKLY_EXCLUDE_SHORTS", true);
 
@@ -86,6 +91,8 @@ function getConfig() {
     lookbackDays,
     topN,
     minViews,
+    maxAttempts,
+    failIfNoneGenerated,
     defaultCategory,
     excludeShorts,
   };
@@ -320,8 +327,13 @@ async function main() {
 
   let generated = 0;
   const failures: string[] = [];
+  const attempts = candidates.slice(0, config.maxAttempts);
 
-  for (const video of candidates) {
+  console.log(
+    `Intentos máximos en esta corrida: ${config.maxAttempts} (objetivo de artículos: ${config.topN})`,
+  );
+
+  for (const video of attempts) {
     if (generated >= config.topN) break;
 
     const category = inferCategory(video, config.defaultCategory);
@@ -339,13 +351,22 @@ async function main() {
   console.log("\nResumen semanal:");
   console.log(`- generados: ${generated}`);
   console.log(`- objetivo: ${config.topN}`);
+  console.log(`- intentos: ${attempts.length}`);
   console.log(`- fallidos: ${failures.length}`);
   if (failures.length) {
     console.log(`- ids fallidos: ${failures.join(", ")}`);
   }
 
   if (generated === 0) {
-    throw new Error("No se pudo generar ningún artículo automático en esta ejecución");
+    const message =
+      "No se pudo generar ningún artículo automático en esta ejecución (transcripción no disponible en videos candidatos).";
+
+    if (config.failIfNoneGenerated) {
+      throw new Error(message);
+    }
+
+    console.warn(`⚠️ ${message}`);
+    console.warn("El workflow termina en éxito para reintentar en la próxima ventana semanal.");
   }
 }
 

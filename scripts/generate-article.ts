@@ -29,6 +29,8 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { YoutubeTranscript } from "youtube-transcript";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { spawnSync } from "node:child_process";
+import os from "node:os";
 
 type Category = "Reviews" | "Entrevistas" | "Análisis" | "Detrás de cámaras";
 interface TranscriptChunk {
@@ -98,6 +100,18 @@ function canUseOAuthCaptions(): boolean {
       && process.env.YT_OAUTH_CLIENT_SECRET
       && process.env.YT_OAUTH_REFRESH_TOKEN,
   );
+}
+
+function canUseWhisper(): boolean {
+  const value = process.env.WHISPER_ENABLED;
+  if (!value) return false;
+  return value.trim().toLowerCase() === "true";
+}
+
+function readNonEmptyEnv(name: string, fallback: string): string {
+  const value = process.env[name];
+  if (!value || value.trim() === "") return fallback;
+  return value;
 }
 
 function parseSrtTime(value: string): number | null {
@@ -387,6 +401,60 @@ async function fetchVideoMeta(videoId: string, apiKey: string) {
   };
 }
 
+async function fetchTranscriptViaWhisper(videoId: string): Promise<TranscriptChunk[]> {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "walka-whisper-"));
+  const outputPath = path.join(tempDir, `${videoId}.txt`);
+
+  const model = readNonEmptyEnv("WHISPER_MODEL", "small");
+  const language = readNonEmptyEnv("WHISPER_LANGUAGE", "es");
+  const maxAudioMinutes = readNonEmptyEnv("WHISPER_MAX_AUDIO_MINUTES", "75");
+
+  try {
+    const command = spawnSync(
+      "python3",
+      [
+        "scripts/transcribe-whisper.py",
+        "--video-id",
+        videoId,
+        "--output",
+        outputPath,
+        "--model",
+        model,
+        "--language",
+        language,
+        "--max-audio-minutes",
+        maxAudioMinutes,
+      ],
+      {
+        cwd: process.cwd(),
+        env: process.env,
+        encoding: "utf8",
+      },
+    );
+
+    if (command.status !== 0) {
+      throw new Error(
+        (command.stderr || command.stdout || "Whisper finalizo con error").trim(),
+      );
+    }
+
+    if (!fs.existsSync(outputPath)) {
+      throw new Error("Whisper no genero archivo de salida");
+    }
+
+    const rawTranscript = fs.readFileSync(outputPath, "utf8");
+    const chunks = parseTranscriptText(rawTranscript);
+
+    if (!chunks.length) {
+      throw new Error("Whisper devolvio una transcripcion vacia");
+    }
+
+    return chunks;
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
 async function fetchTranscript(videoId: string, transcriptFilePath?: string): Promise<TranscriptChunk[]> {
   if (transcriptFilePath) {
     const resolvedPath = path.resolve(transcriptFilePath);
@@ -423,14 +491,29 @@ async function fetchTranscript(videoId: string, transcriptFilePath?: string): Pr
       duration: normalizeOffset(part.duration),
       text: part.text,
     }));
-  } catch (fallbackError) {
+  } catch (youtubeTranscriptError) {
+    if (canUseWhisper()) {
+      try {
+        console.warn("youtube-transcript falló, uso fallback Whisper local...");
+        return await fetchTranscriptViaWhisper(videoId);
+      } catch (whisperError) {
+        throw new Error(
+          `No fue posible obtener transcripción automática del video ${videoId}. `
+          + `OAuth no pudo descargar captions, youtube-transcript falló y Whisper también falló. `
+          + `Detalle youtube-transcript: ${youtubeTranscriptError instanceof Error ? youtubeTranscriptError.message : String(youtubeTranscriptError)}. `
+          + `Detalle Whisper: ${whisperError instanceof Error ? whisperError.message : String(whisperError)}`,
+        );
+      }
+    }
+
     throw new Error(
       `No fue posible obtener transcripción automática del video ${videoId}. `
       + `OAuth no pudo descargar captions y youtube-transcript también falló. `
       + `Opciones: (1) usar --transcript-file con texto/SRT manual, `
       + `(2) autorizar con la cuenta propietaria del canal, `
-      + `(3) subir subtítulos manuales (no ASR) en YouTube Studio. `
-      + `Detalle fallback: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`,
+      + `(3) subir subtítulos manuales (no ASR) en YouTube Studio, `
+      + `(4) habilitar WHISPER_ENABLED=true para usar transcripción local. `
+      + `Detalle fallback: ${youtubeTranscriptError instanceof Error ? youtubeTranscriptError.message : String(youtubeTranscriptError)}`,
     );
   }
 }

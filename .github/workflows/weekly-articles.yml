@@ -31,8 +31,20 @@ jobs:
           node-version: 20
           cache: npm
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
       - name: Install dependencies
         run: npm ci
+
+      - name: Install Whisper dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          python -m pip install --upgrade pip
+          pip install -r scripts/requirements-whisper.txt
 
       - name: Generate weekly articles
         run: npm run articles:weekly
@@ -46,8 +58,14 @@ jobs:
           WEEKLY_LOOKBACK_DAYS: ${{ vars.WEEKLY_LOOKBACK_DAYS }}
           WEEKLY_TOP_N: ${{ vars.WEEKLY_TOP_N }}
           WEEKLY_MIN_VIEWS: ${{ vars.WEEKLY_MIN_VIEWS }}
+          WEEKLY_MAX_ATTEMPTS: ${{ vars.WEEKLY_MAX_ATTEMPTS }}
+          WEEKLY_FAIL_IF_NONE_GENERATED: ${{ vars.WEEKLY_FAIL_IF_NONE_GENERATED }}
           WEEKLY_DEFAULT_CATEGORY: ${{ vars.WEEKLY_DEFAULT_CATEGORY }}
           WEEKLY_EXCLUDE_SHORTS: ${{ vars.WEEKLY_EXCLUDE_SHORTS }}
+          WHISPER_ENABLED: "true"
+          WHISPER_MODEL: ${{ vars.WHISPER_MODEL }}
+          WHISPER_LANGUAGE: ${{ vars.WHISPER_LANGUAGE }}
+          WHISPER_MAX_AUDIO_MINUTES: ${{ vars.WHISPER_MAX_AUDIO_MINUTES }}
 
       - name: Commit and push generated articles
         run: |
