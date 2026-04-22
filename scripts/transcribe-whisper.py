@@ -60,10 +60,30 @@ def write_cookie_file_if_available(work_dir: Path) -> Path | None:
         except Exception:  # noqa: BLE001
             # Permite el caso comun: contenido txt pegado por error en YTDLP_COOKIES_B64.
             cookie_file.write_text(cookies_b64, encoding="utf-8")
+        validate_cookie_file(cookie_file)
         return cookie_file
 
     cookie_file.write_text(cookies_txt, encoding="utf-8")
+    validate_cookie_file(cookie_file)
     return cookie_file
+
+
+def validate_cookie_file(cookie_file: Path) -> None:
+    content = cookie_file.read_text(encoding="utf-8", errors="ignore")
+    lowered = content.lower()
+
+    # yt-dlp necesita cookies de youtube.com; un export solo de studio.youtube.com suele fallar.
+    has_youtube_domain = (
+        "youtube.com" in lowered
+        or ".youtube.com" in lowered
+        or "youtu.be" in lowered
+    )
+
+    if not has_youtube_domain:
+        raise RuntimeError(
+            "El secret de cookies no contiene dominios de YouTube validos (youtube.com/.youtube.com). "
+            "Re-exporta cookies desde https://www.youtube.com (no solo Studio) y vuelve a cargar el secret."
+        )
 
 
 def format_timestamp(seconds: float) -> str:

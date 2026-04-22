@@ -54,6 +54,7 @@ jobs:
           YT_OAUTH_CLIENT_ID: ${{ secrets.YT_OAUTH_CLIENT_ID }}
           YT_OAUTH_CLIENT_SECRET: ${{ secrets.YT_OAUTH_CLIENT_SECRET }}
           YT_OAUTH_REFRESH_TOKEN: ${{ secrets.YT_OAUTH_REFRESH_TOKEN }}
+          YT_OAUTH_DISABLE: "true"
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           WEEKLY_LOOKBACK_DAYS: ${{ vars.WEEKLY_LOOKBACK_DAYS }}
           WEEKLY_TOP_N: ${{ vars.WEEKLY_TOP_N }}

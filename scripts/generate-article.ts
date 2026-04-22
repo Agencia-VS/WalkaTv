@@ -95,6 +95,9 @@ function slugify(s: string): string {
 }
 
 function canUseOAuthCaptions(): boolean {
+  const oauthDisabled = process.env.YT_OAUTH_DISABLE?.trim().toLowerCase() === "true";
+  if (oauthDisabled) return false;
+
   return Boolean(
     process.env.YT_OAUTH_CLIENT_ID
       && process.env.YT_OAUTH_CLIENT_SECRET
