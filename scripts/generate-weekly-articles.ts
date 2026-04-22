@@ -43,17 +43,42 @@ function requireEnvOrFallback(primary: string, fallback?: string): string {
   return value;
 }
 
+function readNumberEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (raw === undefined || raw.trim() === "") return fallback;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function readBooleanEnv(name: string, fallback: boolean): boolean {
+  const raw = process.env[name];
+  if (raw === undefined || raw.trim() === "") return fallback;
+  return raw.toLowerCase() !== "false";
+}
+
+function readCategoryEnv(name: string, fallback: Category): Category {
+  const raw = process.env[name]?.trim();
+  if (!raw) return fallback;
+
+  const allowed: Category[] = [
+    "Reviews",
+    "Entrevistas",
+    "Análisis",
+    "Detrás de cámaras",
+  ];
+
+  return allowed.includes(raw as Category) ? (raw as Category) : fallback;
+}
+
 function getConfig() {
   const ytApiKey = requireEnvOrFallback("YT_API_KEY", "NEXT_PUBLIC_YOUTUBE_API_KEY");
   const channelId = requireEnvOrFallback("YT_CHANNEL_ID", "NEXT_PUBLIC_YOUTUBE_CHANNEL_ID");
 
-  const lookbackDays = Number(process.env.WEEKLY_LOOKBACK_DAYS ?? 7);
-  const topN = Number(process.env.WEEKLY_TOP_N ?? 3);
-  const minViews = Number(process.env.WEEKLY_MIN_VIEWS ?? 0);
-  const defaultCategory =
-    (process.env.WEEKLY_DEFAULT_CATEGORY as Category | undefined) ?? "Análisis";
-  const excludeShorts =
-    String(process.env.WEEKLY_EXCLUDE_SHORTS ?? "true").toLowerCase() !== "false";
+  const lookbackDays = Math.max(1, readNumberEnv("WEEKLY_LOOKBACK_DAYS", 7));
+  const topN = Math.max(1, readNumberEnv("WEEKLY_TOP_N", 3));
+  const minViews = Math.max(0, readNumberEnv("WEEKLY_MIN_VIEWS", 0));
+  const defaultCategory = readCategoryEnv("WEEKLY_DEFAULT_CATEGORY", "Análisis");
+  const excludeShorts = readBooleanEnv("WEEKLY_EXCLUDE_SHORTS", true);
 
   return {
     ytApiKey,
