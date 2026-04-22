@@ -73,7 +73,9 @@ Reglas críticas:
 6. Longitud mínima: 600 palabras. Si la transcripción es corta, expande los conceptos con conocimiento general relevante.
 7. Si el texto fuente trae marcas de tiempo, úsalas para anclar citas y momentos clave.
 8. Si el material es una entrevista, añade una sección final "Citas destacadas" con 3 a 5 citas breves y su timestamp.
-9. Devuelve SOLO el cuerpo del artículo en Markdown, sin front-matter y sin comentarios.
+9. Redacción normativa: aplica ortografía, puntuación y gramática según la RAE; evita muletillas y repeticiones.
+10. Capitalización en español: en títulos y subtítulos usa mayúscula solo al inicio y en nombres propios/siglas; evita Title Case en inglés y MAYÚSCULAS sostenidas.
+11. Devuelve SOLO el cuerpo del artículo en Markdown, sin front-matter y sin comentarios.
 
 Transcripción:
 ---

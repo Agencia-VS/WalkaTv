@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "oauth:youtube": "tsx scripts/youtube-oauth.ts",
+    "articles:generate": "tsx scripts/generate-article.ts",
+    "articles:weekly": "tsx scripts/generate-weekly-articles.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
