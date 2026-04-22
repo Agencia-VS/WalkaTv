@@ -12,6 +12,7 @@ from pathlib import Path
 
 from faster_whisper import WhisperModel
 import yt_dlp
+from yt_dlp.utils import DownloadError
 
 
 def env_or_default(name: str, default: str) -> str:
@@ -79,17 +80,22 @@ def download_audio(video_id: str, work_dir: Path) -> Path:
     url = f"https://www.youtube.com/watch?v={video_id}"
     output_template = str(work_dir / "%(id)s.%(ext)s")
 
-    opts = {
-        "format": "bestaudio/best",
+    base_opts = {
         "outtmpl": output_template,
         "quiet": True,
         "no_warnings": True,
         "noplaylist": True,
+        "live_from_start": True,
         "http_headers": {
             "User-Agent": env_or_default(
                 "YTDLP_USER_AGENT",
                 "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
             )
+        },
+        "extractor_args": {
+            "youtube": {
+                "player_client": ["android", "web", "tv"],
+            }
         },
         "postprocessors": [
             {
@@ -102,21 +108,41 @@ def download_audio(video_id: str, work_dir: Path) -> Path:
 
     cookie_file = write_cookie_file_if_available(work_dir)
     if cookie_file:
-        opts["cookiefile"] = str(cookie_file)
+        base_opts["cookiefile"] = str(cookie_file)
 
-    with yt_dlp.YoutubeDL(opts) as ydl:
-        info = ydl.extract_info(url, download=True)
-        candidate = work_dir / f"{info['id']}.mp3"
+    format_candidates = [
+        "bestaudio/best",
+        "bestaudio*",
+        "best",
+    ]
 
-    if candidate.exists():
-        return candidate
+    errors: list[str] = []
 
-    for ext in (".m4a", ".webm", ".mp3", ".opus"):
-        alt = work_dir / f"{video_id}{ext}"
-        if alt.exists():
-            return alt
+    for fmt in format_candidates:
+        opts = {**base_opts, "format": fmt}
 
-    raise RuntimeError("No se pudo descargar audio del video")
+        try:
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                info = ydl.extract_info(url, download=True)
+                candidate = work_dir / f"{info['id']}.mp3"
+
+            if candidate.exists():
+                return candidate
+
+            for ext in (".m4a", ".webm", ".mp3", ".opus", ".mp4", ".mkv"):
+                alt = work_dir / f"{video_id}{ext}"
+                if alt.exists():
+                    return alt
+
+            errors.append(f"{fmt}: descarga sin archivo util")
+        except DownloadError as exc:
+            errors.append(f"{fmt}: {str(exc).strip()}")
+
+    compact_errors = " | ".join(errors[-3:])
+    raise RuntimeError(
+        "No se pudo descargar audio del video con yt-dlp. "
+        f"Intentos: {compact_errors if compact_errors else 'sin detalle'}"
+    )
 
 
 def trim_and_prepare_audio(input_audio: Path, output_audio: Path, max_minutes: int) -> None:
