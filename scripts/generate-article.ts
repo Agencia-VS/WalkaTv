@@ -386,7 +386,7 @@ async function fetchTranscriptViaOAuth(videoId: string): Promise<TranscriptChunk
   return chunks;
 }
 
-async function fetchVideoMeta(videoId: string, apiKey: string) {
+async function fetchVideoMetaViaApi(videoId: string, apiKey: string) {
   const url = `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoId}&key=${apiKey}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`YouTube API error: ${res.status}`);
@@ -402,6 +402,39 @@ async function fetchVideoMeta(videoId: string, apiKey: string) {
       (item.snippet.thumbnails?.high?.url as string) ??
       `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
   };
+}
+
+async function fetchVideoMetaViaOEmbed(videoId: string) {
+  const oembedUrl = `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`;
+  const res = await fetch(oembedUrl);
+  if (!res.ok) throw new Error(`oEmbed error: ${res.status}`);
+
+  const data = (await res.json()) as {
+    title?: string;
+    author_name?: string;
+    thumbnail_url?: string;
+  };
+
+  return {
+    title: data.title || `Video ${videoId}`,
+    description: data.author_name ? `Canal: ${data.author_name}` : "",
+    publishedAt: new Date().toISOString(),
+    thumbnail: data.thumbnail_url ?? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+  };
+}
+
+async function fetchVideoMeta(videoId: string, apiKey?: string) {
+  if (apiKey) {
+    try {
+      return await fetchVideoMetaViaApi(videoId, apiKey);
+    } catch (apiError) {
+      console.warn(
+        `No se pudieron obtener metadatos por API (${apiError instanceof Error ? apiError.message : String(apiError)}), uso fallback oEmbed...`,
+      );
+    }
+  }
+
+  return fetchVideoMetaViaOEmbed(videoId);
 }
 
 async function fetchTranscriptViaWhisper(videoId: string): Promise<TranscriptChunk[]> {
@@ -551,10 +584,6 @@ async function main() {
   const ytKey =
     process.env.YT_API_KEY ?? process.env.NEXT_PUBLIC_YOUTUBE_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY;
-  if (!ytKey)
-    throw new Error(
-      "Falta YT_API_KEY (o NEXT_PUBLIC_YOUTUBE_API_KEY) en el entorno",
-    );
   if (!geminiKey) throw new Error("Falta GEMINI_API_KEY");
 
   console.log(`Obteniendo metadatos de ${videoId}…`);

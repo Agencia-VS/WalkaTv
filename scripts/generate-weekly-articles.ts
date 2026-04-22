@@ -10,6 +10,7 @@ type Category = "Reviews" | "Entrevistas" | "Análisis" | "Detrás de cámaras";
 interface PlaylistItem {
   videoId: string;
   publishedAt: string;
+  title?: string;
 }
 
 interface VideoStats {
@@ -43,6 +44,12 @@ function requireEnvOrFallback(primary: string, fallback?: string): string {
   return value;
 }
 
+function optionalEnv(primary: string, fallback?: string): string | undefined {
+  const value = process.env[primary] ?? (fallback ? process.env[fallback] : undefined);
+  if (!value || value.trim() === "") return undefined;
+  return value;
+}
+
 function readNumberEnv(name: string, fallback: number): number {
   const raw = process.env[name];
   if (raw === undefined || raw.trim() === "") return fallback;
@@ -71,7 +78,7 @@ function readCategoryEnv(name: string, fallback: Category): Category {
 }
 
 function getConfig() {
-  const ytApiKey = requireEnvOrFallback("YT_API_KEY", "NEXT_PUBLIC_YOUTUBE_API_KEY");
+  const ytApiKey = optionalEnv("YT_API_KEY", "NEXT_PUBLIC_YOUTUBE_API_KEY");
   const channelId = requireEnvOrFallback("YT_CHANNEL_ID", "NEXT_PUBLIC_YOUTUBE_CHANNEL_ID");
 
   const lookbackDays = Math.max(1, readNumberEnv("WEEKLY_LOOKBACK_DAYS", 7));
@@ -96,6 +103,63 @@ function getConfig() {
     defaultCategory,
     excludeShorts,
   };
+}
+
+function decodeXmlText(value: string): string {
+  return value
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+}
+
+function parseRssTag(block: string, tag: string): string | undefined {
+  const match = block.match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`, "i"));
+  if (!match?.[1]) return undefined;
+  return decodeXmlText(match[1].trim());
+}
+
+async function fetchRecentItemsViaRss(channelId: string, minDate: Date): Promise<PlaylistItem[]> {
+  const url = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`No se pudo leer feed RSS del canal (${res.status})`);
+  }
+
+  const xml = await res.text();
+  const entryBlocks = xml.match(/<entry>[\s\S]*?<\/entry>/g) ?? [];
+  const items: PlaylistItem[] = [];
+
+  for (const block of entryBlocks) {
+    const videoId = parseRssTag(block, "yt:videoId");
+    const publishedAt = parseRssTag(block, "published");
+    const title = parseRssTag(block, "title");
+
+    if (!videoId || !publishedAt) continue;
+
+    const date = new Date(publishedAt);
+    if (Number.isNaN(date.getTime())) continue;
+    if (date < minDate) continue;
+
+    items.push({ videoId, publishedAt, title });
+  }
+
+  return items;
+}
+
+function buildVideoStatsFromItems(items: PlaylistItem[]): VideoStats[] {
+  return items.map((item, index) => ({
+    id: item.videoId,
+    title: item.title ?? item.videoId,
+    description: "",
+    publishedAt: item.publishedAt,
+    duration: "PT10M",
+    // Mantiene prioridad de más reciente cuando no hay métricas reales.
+    viewCount: items.length - index,
+    likeCount: 0,
+    commentCount: 0,
+  }));
 }
 
 function parseDurationToSeconds(isoDuration: string): number {
@@ -285,8 +349,23 @@ async function main() {
   const existingVideoIds = getExistingVideoIds();
 
   console.log(`Analizando videos del canal en los últimos ${config.lookbackDays} días...`);
-  const uploadsPlaylistId = await fetchUploadsPlaylistId(config.channelId, config.ytApiKey);
-  const recentItems = await fetchRecentPlaylistItems(uploadsPlaylistId, config.ytApiKey, minDate);
+
+  let recentItems: PlaylistItem[] = [];
+  if (config.ytApiKey) {
+    try {
+      const uploadsPlaylistId = await fetchUploadsPlaylistId(config.channelId, config.ytApiKey);
+      recentItems = await fetchRecentPlaylistItems(uploadsPlaylistId, config.ytApiKey, minDate);
+    } catch (error) {
+      console.warn(
+        `No se pudo listar por YouTube Data API (${error instanceof Error ? error.message : String(error)}). `
+        + "Uso fallback RSS del canal...",
+      );
+      recentItems = await fetchRecentItemsViaRss(config.channelId, minDate);
+    }
+  } else {
+    console.warn("YT_API_KEY no está definida; uso fallback RSS del canal.");
+    recentItems = await fetchRecentItemsViaRss(config.channelId, minDate);
+  }
 
   if (recentItems.length === 0) {
     console.log("No hay videos recientes en la ventana semanal.");
@@ -294,7 +373,20 @@ async function main() {
   }
 
   const uniqueIds = [...new Set(recentItems.map((item) => item.videoId))];
-  const videos = await fetchVideoStats(uniqueIds, config.ytApiKey);
+  let videos: VideoStats[];
+  if (config.ytApiKey) {
+    try {
+      videos = await fetchVideoStats(uniqueIds, config.ytApiKey);
+    } catch (error) {
+      console.warn(
+        `No se pudieron obtener estadísticas por API (${error instanceof Error ? error.message : String(error)}). `
+        + "Uso metadatos mínimos para continuar.",
+      );
+      videos = buildVideoStatsFromItems(recentItems);
+    }
+  } else {
+    videos = buildVideoStatsFromItems(recentItems);
+  }
 
   const candidates = rankVideos(videos).filter((video) => {
     const isExisting = existingVideoIds.has(video.id);
