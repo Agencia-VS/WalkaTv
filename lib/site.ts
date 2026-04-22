@@ -3,7 +3,7 @@ export const SITE = {
   url: "https://walkatv.com",
   description:
     "Walka TV es un medio de entretenimiento y deporte: reviews, entrevistas, análisis y el detrás de cámaras de nuestro canal de YouTube.",
-  contactEmail: "hola@walka.tv",
+  contactEmail: "tomas.ruiz@agenciavs.cl",
   legalName: "Walka TV",
   youtube: "https://www.youtube.com/@Walkaatv",
   instagram: "https://www.instagram.com/walkatv_/",
