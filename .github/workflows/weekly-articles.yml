@@ -66,6 +66,10 @@ jobs:
           WHISPER_MODEL: ${{ vars.WHISPER_MODEL }}
           WHISPER_LANGUAGE: ${{ vars.WHISPER_LANGUAGE }}
           WHISPER_MAX_AUDIO_MINUTES: ${{ vars.WHISPER_MAX_AUDIO_MINUTES }}
+          YTDLP_COOKIES_GZ_B64: ${{ secrets.YTDLP_COOKIES_GZ_B64 }}
+          YTDLP_COOKIES_B64: ${{ secrets.YTDLP_COOKIES_B64 }}
+          YTDLP_COOKIES_TXT: ${{ secrets.YTDLP_COOKIES_TXT }}
+          YTDLP_USER_AGENT: ${{ vars.YTDLP_USER_AGENT }}
 
       - name: Commit and push generated articles
         run: |

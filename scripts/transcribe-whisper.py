@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 import argparse
+import base64
+import gzip
 import os
 import shutil
 import subprocess
@@ -30,6 +32,39 @@ def env_int_or_default(name: str, default: int) -> int:
         return default
 
 
+def write_cookie_file_if_available(work_dir: Path) -> Path | None:
+    cookies_gz_b64 = os.getenv("YTDLP_COOKIES_GZ_B64", "").strip()
+    cookies_b64 = os.getenv("YTDLP_COOKIES_B64", "").strip()
+    cookies_txt = os.getenv("YTDLP_COOKIES_TXT", "").strip()
+
+    if not cookies_gz_b64 and not cookies_b64 and not cookies_txt:
+        return None
+
+    cookie_file = work_dir / "cookies.txt"
+
+    if cookies_gz_b64:
+        try:
+            decoded = base64.b64decode(cookies_gz_b64)
+            uncompressed = gzip.decompress(decoded).decode("utf-8")
+            cookie_file.write_text(uncompressed, encoding="utf-8")
+            return cookie_file
+        except Exception:  # noqa: BLE001
+            # Si el secret no es gzip+base64 valido, continuar con otros formatos.
+            pass
+
+    if cookies_b64:
+        try:
+            decoded = base64.b64decode(cookies_b64).decode("utf-8")
+            cookie_file.write_text(decoded, encoding="utf-8")
+        except Exception:  # noqa: BLE001
+            # Permite el caso comun: contenido txt pegado por error en YTDLP_COOKIES_B64.
+            cookie_file.write_text(cookies_b64, encoding="utf-8")
+        return cookie_file
+
+    cookie_file.write_text(cookies_txt, encoding="utf-8")
+    return cookie_file
+
+
 def format_timestamp(seconds: float) -> str:
     total = max(0, int(seconds))
     hours = total // 3600
@@ -50,6 +85,12 @@ def download_audio(video_id: str, work_dir: Path) -> Path:
         "quiet": True,
         "no_warnings": True,
         "noplaylist": True,
+        "http_headers": {
+            "User-Agent": env_or_default(
+                "YTDLP_USER_AGENT",
+                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            )
+        },
         "postprocessors": [
             {
                 "key": "FFmpegExtractAudio",
@@ -58,6 +99,10 @@ def download_audio(video_id: str, work_dir: Path) -> Path:
             }
         ],
     }
+
+    cookie_file = write_cookie_file_if_available(work_dir)
+    if cookie_file:
+        opts["cookiefile"] = str(cookie_file)
 
     with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(url, download=True)
