@@ -12,6 +12,24 @@ from faster_whisper import WhisperModel
 import yt_dlp
 
 
+def env_or_default(name: str, default: str) -> str:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    value = value.strip()
+    if value == "":
+        return default
+    return value
+
+
+def env_int_or_default(name: str, default: int) -> int:
+    raw = env_or_default(name, str(default))
+    try:
+        return int(raw)
+    except ValueError:
+        return default
+
+
 def format_timestamp(seconds: float) -> str:
     total = max(0, int(seconds))
     hours = total // 3600
@@ -101,12 +119,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Transcribe un video de YouTube con Whisper")
     parser.add_argument("--video-id", required=True)
     parser.add_argument("--output", required=True)
-    parser.add_argument("--model", default=os.getenv("WHISPER_MODEL", "small"))
-    parser.add_argument("--language", default=os.getenv("WHISPER_LANGUAGE", "es"))
+    parser.add_argument("--model", default=env_or_default("WHISPER_MODEL", "small"))
+    parser.add_argument("--language", default=env_or_default("WHISPER_LANGUAGE", "es"))
     parser.add_argument(
         "--max-audio-minutes",
         type=int,
-        default=int(os.getenv("WHISPER_MAX_AUDIO_MINUTES", "75")),
+        default=env_int_or_default("WHISPER_MAX_AUDIO_MINUTES", 75),
     )
 
     args = parser.parse_args()
