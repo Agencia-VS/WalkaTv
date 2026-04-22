@@ -1,6 +1,9 @@
 name: Weekly Articles Autopublish
 
 on:
+  push:
+    branches:
+      - main
   schedule:
     - cron: "0 12 * * 1"
   workflow_dispatch:
@@ -14,6 +17,7 @@ concurrency:
 
 jobs:
   generate-and-push:
+    if: github.event_name != 'push' || github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
